@@ -9,15 +9,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI)
-/* ✅ MongoDB Connection 
-mongoose.connect(
-  "mongodb+srv://ulkaprocess_db_user:ulka2025@cluster1.htc1ovw.mongodb.net/transaction_db?retryWrites=true&w=majority"
-)*/
-.then(() => console.log("MongoDB Connected"))
-.catch(err => console.log(err));
+/// ✅ ROOT ROUTE (IMPORTANT for Render)
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
 
-/* ✅ ADD DATA */
+/// ✅ MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 10000,
+})
+.then(() => console.log("MongoDB Connected"))
+.catch(err => console.log("Mongo Error:", err));
+
+/// ✅ ADD
 app.post("/data", async (req, res) => {
   try {
     const newData = new Stock(req.body);
@@ -29,9 +33,7 @@ app.post("/data", async (req, res) => {
   }
 });
 
-/* ✅ MINUS DATA */
-
-/* ✅ GET ALL DATA (FOR HOME SCREEN) */
+/// ✅ GET
 app.get("/data", async (req, res) => {
   try {
     const allData = await Stock.find().sort({ createdAt: -1 });
@@ -41,16 +43,13 @@ app.get("/data", async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
-});
-
+/// ✅ UPDATE
 app.put("/data/update/:id", async (req, res) => {
   try {
     const updated = await Stock.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { returnDocument: 'after' }
+      { new: true } // 🔥 FIXED
     );
 
     res.status(200).json(updated);
@@ -59,6 +58,7 @@ app.put("/data/update/:id", async (req, res) => {
   }
 });
 
+/// ✅ DELETE
 app.delete("/data/delete/:id", async (req, res) => {
   try {
     const deleted = await Stock.findByIdAndDelete(req.params.id);
@@ -75,6 +75,9 @@ app.delete("/data/delete/:id", async (req, res) => {
   }
 });
 
-app.listen(5000, "0.0.0.0", () => {
-  console.log("Server running on port 5000");
+/// ✅ SINGLE LISTEN (FIXED)
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
