@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 
 /// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 5000,
 })
 .then(() => console.log("MongoDB Connected"))
 .catch(err => console.log("Mongo Error:", err));
@@ -36,13 +36,24 @@ app.post("/data", async (req, res) => {
 /// ✅ GET
 app.get("/data", async (req, res) => {
   try {
-    const allData = await Stock.find().sort({ createdAt: -1 });
-    res.json(allData);
+    const allData = await Stock.find()
+      .sort({ createdAt: -1 })
+      .maxTimeMS(5000); // ⬅️ prevent hanging
+
+    res.json({
+      success: true,
+      data: allData,
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("FETCH ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server timeout / DB issue",
+    });
   }
 });
-
 /// ✅ UPDATE
 app.put("/data/update/:id", async (req, res) => {
   try {
