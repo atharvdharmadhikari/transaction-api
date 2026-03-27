@@ -68,18 +68,32 @@ app.get("/data", async (req, res) => {
 /// ✅ UPDATE
 app.put("/data/update/:id", async (req, res) => {
   try {
+    console.log("UPDATE BODY:", req.body);
+
     const updated = await Stock.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true } // 🔥 FIXED
+      { new: true } // ✅ FIX
     );
 
-    res.status(200).json(updated);
+    if (!updated) {
+      return res.status(404).json({ message: "Data not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updated,
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("UPDATE ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
-
 /// ✅ DELETE
 app.delete("/data/delete/:id", async (req, res) => {
   try {
