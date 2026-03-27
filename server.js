@@ -24,12 +24,23 @@ mongoose.connect(process.env.MONGO_URI, {
 /// ✅ ADD
 app.post("/data", async (req, res) => {
   try {
+    console.log("BODY RECEIVED:", req.body); // 🔥 DEBUG
+
     const newData = new Stock(req.body);
     await newData.save();
-    res.status(201).json(newData);
+
+    res.status(201).json({
+      success: true,
+      data: newData,
+    });
+
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
+    console.log("ADD ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 
