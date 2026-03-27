@@ -9,10 +9,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ✅ MongoDB Connection */
+mongoose.connect(process.env.MONGO_URI)
+/* ✅ MongoDB Connection 
 mongoose.connect(
   "mongodb+srv://ulkaprocess_db_user:ulka2025@cluster1.htc1ovw.mongodb.net/transaction_db?retryWrites=true&w=majority"
-)
+)*/
 .then(() => console.log("MongoDB Connected"))
 .catch(err => console.log(err));
 
@@ -55,6 +56,22 @@ app.put("/data/update/:id", async (req, res) => {
     res.status(200).json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/data/delete/:id", async (req, res) => {
+  try {
+    const deleted = await Stock.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Data not found" });
+    }
+
+    res.status(200).json({ message: "Deleted successfully" });
+
+  } catch (err) {
+    console.error("DELETE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
