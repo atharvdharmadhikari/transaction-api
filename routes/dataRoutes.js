@@ -13,7 +13,7 @@ const DataSchema = new mongoose.Schema({
 const Data = mongoose.model("Data", DataSchema);
 
 // ✅ ADD ENTRY
-router.post("/", async (req, res) => {
+router.post("/data", async (req, res) => {
   try {
     const newData = new Data(req.body);
     await newData.save();
