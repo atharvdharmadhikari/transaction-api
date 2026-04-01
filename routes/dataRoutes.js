@@ -31,9 +31,13 @@ router.post("/remove", async (req, res) => {
 });
 
 // 🏠 STOCK
-router.get("/stocks", async (req, res) => {
-  const data = await Data.find();
-  res.json(data);
+router.get("/", async (req, res) => {
+  try {
+    const data = await Data.find().sort({ createdAt: -1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 app.post("/data/remove", async (req, res) => {
   try {
