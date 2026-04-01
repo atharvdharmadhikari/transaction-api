@@ -52,7 +52,7 @@ createIndex();
 /// ➕ ADD DATA
 app.post("/data", async (req, res) => {
   try {
-    const data = new Stock(req.body);
+    const data = new products(req.body);
     await data.save();
 
     await esClient.index({
@@ -71,7 +71,7 @@ app.post("/data", async (req, res) => {
 /// 📥 GET ALL DATA
 app.get("/data", async (req, res) => {
   try {
-    const data = await Stock.find().sort({ createdAt: -1 });
+    const data = await products.find().sort({ createdAt: -1 });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -81,7 +81,7 @@ app.get("/data", async (req, res) => {
 /// ✏️ UPDATE DATA
 app.put("/data/update/:id", async (req, res) => {
   try {
-    const updated = await Stock.findByIdAndUpdate(
+    const updated = await products.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
       { returnDocument: "after" }
@@ -103,7 +103,7 @@ app.put("/data/update/:id", async (req, res) => {
 /// 🗑 DELETE DATA
 app.delete("/data/delete/:id", async (req, res) => {
   try {
-    await Stock.findByIdAndDelete(req.params.id);
+    await products.findByIdAndDelete(req.params.id);
 
     await esClient.delete({
       index: "transactions",
