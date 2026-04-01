@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 
-// Schema
+// Schema (collection = products)
 const DataSchema = new mongoose.Schema({
   productName: String,
   quantity: Number,
@@ -10,44 +10,90 @@ const DataSchema = new mongoose.Schema({
   driverName: String,
 }, { timestamps: true });
 
-const Data = mongoose.model("Data", DataSchema);
+const Data = mongoose.model("Product", DataSchema);
 
 // ✅ ADD ENTRY
-router.post("/data", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const newData = new Data(req.body);
     await newData.save();
 
-    res.status(201).json(newData);
+    res.status(201).json({
+      success: true,
+      data: newData
+    });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 
-// ➖ REMOVE ENTRY
-router.post("/remove", async (req, res) => {
-  res.json({ message: "Remove working" });
-});
-
-// 🏠 STOCK
+// ✅ GET ALL DATA (HOME SCREEN)
 router.get("/", async (req, res) => {
   try {
     const data = await Data.find().sort({ createdAt: -1 });
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-app.post("/data/remove", async (req, res) => {
+
+// ✅ UPDATE ENTRY
+router.put("/update/:id", async (req, res) => {
+  try {
+    const updated = await Data.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { returnDocument: "after" }
+    );
+
+    res.json({
+      success: true,
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+// ✅ DELETE ENTRY
+router.delete("/delete/:id", async (req, res) => {
+  try {
+    await Data.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Deleted successfully"
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+// ✅ REMOVE / MINUS ENTRY (OPTIONAL)
+router.post("/remove", async (req, res) => {
   try {
     const newData = new Data(req.body);
     await newData.save();
 
-    res.status(201).json(newData);
+    res.status(201).json({
+      success: true,
+      data: newData
+    });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
 });
 
