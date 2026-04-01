@@ -29,14 +29,7 @@ esClient.info()
   .catch(err => console.log("Elastic Error:", err));
 
 /// 📦 Schema
-const stockSchema = new mongoose.Schema({
-  variety: String,
-  inwardNo: String,
-  vehicleNumber: String,
-  species: String,
-  balanceKg: String,
-  balanceQty: String,
-}, { timestamps: true });
+
 
 const Stock = mongoose.model("Stock", stockSchema);
 
