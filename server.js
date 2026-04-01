@@ -1,147 +1,119 @@
-require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const { Client } = require("@elastic/elasticsearch");
+
+const Stock = require("./models/product");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-const dataRoutes = require("./routes/dataRoutes");
 
-app.use("/data", dataRoutes); // ✅ MUST BE THIS
-
-/// 🔗 MongoDB Connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.log("Mongo Error:", err));
-
-/// 🔍 Elasticsearch Client
-const esClient = new Client({
-  node: process.env.ELASTIC_URL,
-  auth: {
-    apiKey: process.env.ELASTIC_API_KEY,
-  },
+/// ✅ ROOT ROUTE (IMPORTANT for Render)
+app.get("/", (req, res) => {
+  res.send("API is running...");
 });
 
-esClient.info()
-  .then(() => console.log("✅ Elasticsearch Connected"))
-  .catch(err => console.log("Elastic Error:", err));
+/// ✅ MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  serverSelectionTimeoutMS: 5000,
+})
+.then(() => console.log("MongoDB Connected"))
+.catch(err => console.log("Mongo Error:", err));
 
-/// 📦 Schema
-
-
-const Stock = mongoose.model("Stock", stockSchema);
-
-/// 🔥 CREATE INDEX (run once automatically)
-async function createIndex() {
-  try {
-    await esClient.indices.create({ index: "transactions" });
-    console.log("✅ Index created");
-  } catch (err) {
-    console.log("ℹ️ Index already exists");
-  }
-}
-createIndex();
-
-/// ➕ ADD DATA
+/// ✅ ADD
 app.post("/data", async (req, res) => {
   try {
-    const data = new products(req.body);
-    await data.save();
+    console.log("BODY RECEIVED:", req.body); // 🔥 DEBUG
 
-    await esClient.index({
-      index: "transactions",
-      id: data._id.toString(),
-      document: req.body,
-      refresh: true
+    const newData = new Stock(req.body);
+    await newData.save();
+
+    res.status(201).json({
+      success: true,
+      data: newData,
     });
 
-    res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("ADD ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 
-/// 📥 GET ALL DATA
-app.get("/", async (req, res) => {
+/// ✅ GET
+app.get("/data", async (req, res) => {
   try {
-    const data = await products.find().sort({ createdAt: -1 });
-    res.json(data);
+    const allData = await Stock.find()
+      .sort({ createdAt: -1 })
+      .maxTimeMS(5000); // ⬅️ prevent hanging
+
+    res.json({
+      success: true,
+      data: allData,
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("FETCH ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server timeout / DB issue",
+    });
   }
 });
-
-/// ✏️ UPDATE DATA
+/// ✅ UPDATE
 app.put("/data/update/:id", async (req, res) => {
   try {
-    const updated = await products.findByIdAndUpdate(
+    console.log("UPDATE BODY:", req.body);
+
+    const updated = await Stock.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { returnDocument: "after" }
+      { new: true } // ✅ FIX
     );
 
-    await esClient.update({
-      index: "transactions",
-      id: req.params.id,
-      doc: req.body,
-      refresh: true
+    if (!updated) {
+      return res.status(404).json({ message: "Data not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updated,
     });
 
-    res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("UPDATE ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
-
-/// 🗑 DELETE DATA
+/// ✅ DELETE
 app.delete("/data/delete/:id", async (req, res) => {
   try {
-    await products.findByIdAndDelete(req.params.id);
+    const deleted = await Stock.findByIdAndDelete(req.params.id);
 
-    await esClient.delete({
-      index: "transactions",
-      id: req.params.id,
-      refresh: true
-    });
+    if (!deleted) {
+      return res.status(404).json({ message: "Data not found" });
+    }
 
-    res.json({ message: "Deleted successfully" });
+    res.status(200).json({ message: "Deleted successfully" });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("DELETE ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-/// 🔍 SEARCH (Elastic)
-app.get("/search", async (req, res) => {
-  try {
-    const q = req.query.q;
-
-    const result = await esClient.search({
-      index: "transactions",
-      query: {
-        multi_match: {
-          query: q,
-          fields: ["variety", "vehicleNumber", "inwardNo"],
-          fuzziness: "AUTO"
-        }
-      }
-    });
-
-    const data = result.hits.hits.map(item => item._source);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/// 🚀 SERVER START
+/// ✅ SINGLE LISTEN (FIXED)
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.listen(5000, "0.0.0.0", () => {
+  console.log(`Server running on port 5000`);
 });
-
-
-
-app.use("/data", dataRoutes); // ✅ MUST BE THIS
