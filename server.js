@@ -7,7 +7,9 @@ const { Client } = require("@elastic/elasticsearch");
 const app = express();
 app.use(cors());
 app.use(express.json());
+const dataRoutes = require("./routes/dataRoutes");
 
+app.use("/data", dataRoutes); // ✅ MUST BE THIS
 
 /// 🔗 MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -69,7 +71,7 @@ app.post("/data", async (req, res) => {
 });
 
 /// 📥 GET ALL DATA
-app.get("/data", async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     const data = await products.find().sort({ createdAt: -1 });
     res.json(data);
@@ -147,6 +149,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-const dataRoutes = require("./routes/dataRoutes");
+
 
 app.use("/data", dataRoutes); // ✅ MUST BE THIS
