@@ -1,119 +1,114 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+require("dotenv").config();
 
 const Stock = require("./models/product");
+const esClient = require("./elastic/elasticClient");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-/// ✅ ROOT ROUTE (IMPORTANT for Render)
-app.get("/", (req, res) => {
-  res.send("API is running...");
-});
-
 /// ✅ MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 5000,
-})
-.then(() => console.log("MongoDB Connected"))
-.catch(err => console.log("Mongo Error:", err));
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.log(err));
 
-/// ✅ ADD
+/// ✅ Elastic test
+esClient.info()
+  .then(() => console.log("✅ Elastic Connected"))
+  .catch(err => console.log("❌ Elastic Error:", err));
+
+/// ✅ CREATE INDEX (RUN ONCE)
+async function createIndex() {
+  try {
+    await esClient.indices.create({ index: "transactions" });
+    console.log("Index created");
+  } catch (err) {
+    console.log("Index exists");
+  }
+}
+createIndex();
+
+/// ➕ ADD DATA
 app.post("/data", async (req, res) => {
   try {
-    console.log("BODY RECEIVED:", req.body); // 🔥 DEBUG
+    const data = new Stock(req.body);
+    await data.save();
 
-    const newData = new Stock(req.body);
-    await newData.save();
-
-    res.status(201).json({
-      success: true,
-      data: newData,
+    await esClient.index({
+      index: "transactions",
+      id: data._id.toString(),
+      document: req.body,
+      refresh: true
     });
 
+    res.json(data);
   } catch (err) {
-    console.log("ADD ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
-/// ✅ GET
+/// 📥 GET DATA
 app.get("/data", async (req, res) => {
-  try {
-    const allData = await Stock.find()
-      .sort({ createdAt: -1 })
-      .maxTimeMS(5000); // ⬅️ prevent hanging
-
-    res.json({
-      success: true,
-      data: allData,
-    });
-
-  } catch (err) {
-    console.log("FETCH ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: "Server timeout / DB issue",
-    });
-  }
+  const all = await Stock.find().sort({ createdAt: -1 });
+  res.json(all);
 });
-/// ✅ UPDATE
+
+/// ✏️ UPDATE
 app.put("/data/update/:id", async (req, res) => {
-  try {
-    console.log("UPDATE BODY:", req.body);
+  const updated = await Stock.findByIdAndUpdate(
+    req.params.id,
+    { $set: req.body },
+    { returnDocument: "after" }
+  );
 
-    const updated = await Stock.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true } // ✅ FIX
-    );
+  await esClient.update({
+    index: "transactions",
+    id: req.params.id,
+    doc: req.body,
+    refresh: true
+  });
 
-    if (!updated) {
-      return res.status(404).json({ message: "Data not found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: updated,
-    });
-
-  } catch (err) {
-    console.log("UPDATE ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
+  res.json(updated);
 });
-/// ✅ DELETE
+
+/// 🗑 DELETE
 app.delete("/data/delete/:id", async (req, res) => {
-  try {
-    const deleted = await Stock.findByIdAndDelete(req.params.id);
+  await Stock.findByIdAndDelete(req.params.id);
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Data not found" });
-    }
+  await esClient.delete({
+    index: "transactions",
+    id: req.params.id,
+    refresh: true
+  });
 
-    res.status(200).json({ message: "Deleted successfully" });
-
-  } catch (err) {
-    console.error("DELETE ERROR:", err);
-    res.status(500).json({ message: "Server error" });
-  }
+  res.json({ message: "Deleted" });
 });
 
-/// ✅ SINGLE LISTEN (FIXED)
-const PORT = process.env.PORT || 5000;
+/// 🔍 SEARCH
+app.get("/search", async (req, res) => {
+  const q = req.query.q;
 
-app.listen(5000, "0.0.0.0", () => {
-  console.log(`Server running on port 5000`);
+  const result = await esClient.search({
+    index: "transactions",
+    query: {
+      multi_match: {
+        query: q,
+        fields: ["variety", "vehicleNumber", "inwardNo"],
+        fuzziness: "AUTO"
+      }
+    }
+  });
+
+  const data = result.hits.hits.map(item => item._source);
+  res.json(data);
+});
+
+/// 🚀 SERVER
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on ${PORT}`);
 });
