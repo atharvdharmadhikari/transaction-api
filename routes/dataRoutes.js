@@ -13,7 +13,7 @@ const DataSchema = new mongoose.Schema({
 const Data = mongoose.model("Data", DataSchema);
 
 // ✅ ADD ENTRY
-router.post("/", async (req, res) => {
+router.post("/add", async (req, res) => {
   try {
     const newData = new Data(req.body);
     await newData.save();
@@ -31,7 +31,7 @@ router.post("/remove", async (req, res) => {
 });
 
 // 🏠 STOCK
-router.get("/stocks", async (req, res) => {
+router.get("/all", async (req, res) => {
   const data = await Data.find();
   res.json(data);
 });
