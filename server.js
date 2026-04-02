@@ -42,7 +42,7 @@ app.post('/add', async (req, res) => {
 
     // ✅ FIX: send id properly
     const responseData = {
-      id: data._id,
+      id: data._id.toString(),
       ...data.toObject(),
     };
 
@@ -67,7 +67,7 @@ app.get("/data", async (req, res) => {
     const allData = await Stock.find().sort({ createdAt: -1 });
 
     const formatted = allData.map(item => ({
-      id: item._id,
+     id: item._id.toString(),
       ...item.toObject(),
     }));
 
@@ -106,7 +106,7 @@ app.put('/update/:id', async (req, res) => {
     res.json({
       success: true,
       data: {
-        id: updated._id,
+       id: updated._id.toString(),
         ...updated.toObject(),
       },
     });
@@ -123,7 +123,7 @@ app.put('/update/:id', async (req, res) => {
 /// ✅ DELETE
 app.delete('/delete/:id', async (req, res) => {
   try {
-    await Product.findByIdAndDelete(req.params.id);
+    await Stock.findByIdAndDelete(req.params.id); 
 
     await client.delete({
       index: 'products',
@@ -179,6 +179,6 @@ app.get('/search', async (req, res) => {
 /// ✅ SINGLE LISTEN (FIXED)
 const PORT = process.env.PORT || 5000;
 
-app.listen(5000, "0.0.0.0", () => {
-  console.log(`Server running on port 5000`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });
