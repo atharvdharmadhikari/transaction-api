@@ -27,21 +27,31 @@ const client = require('./elastic/elasticClient');
 
 app.post('/add', async (req, res) => {
   try {
-    const data = await Product.create(req.body);
+    const data = await Stock.create(req.body);
 
-    await client.index({
-      index: 'products',
-      id: data._id.toString(),
-      body: data.toObject(),
-      refresh: true,
+    try {
+      await client.index({
+        index: 'products',
+        id: data._id.toString(),
+        body: data.toObject(),
+        refresh: true,
+      });
+    } catch (elasticError) {
+      console.log("Elastic Error:", elasticError.message);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: data,
     });
 
-    res.json(data);
   } catch (err) {
-    res.status(201).json({
-  success: true,
-  data: data
-});
+    console.log("ADD ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 
