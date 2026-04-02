@@ -29,20 +29,26 @@ app.post('/add', async (req, res) => {
   try {
     const data = await Stock.create(req.body);
 
+    // Elastic (safe)
     try {
       await client.index({
         index: 'products',
         id: data._id.toString(),
         body: data.toObject(),
-        refresh: true,
       });
-    } catch (elasticError) {
-      console.log("Elastic Error:", elasticError.message);
+    } catch (e) {
+      console.log("Elastic Error:", e.message);
     }
+
+    // ✅ FIX: send id properly
+    const responseData = {
+      id: data._id,
+      ...data.toObject(),
+    };
 
     res.status(201).json({
       success: true,
-      data: data,
+      data: responseData,
     });
 
   } catch (err) {
@@ -58,21 +64,22 @@ app.post('/add', async (req, res) => {
 /// ✅ GET
 app.get("/data", async (req, res) => {
   try {
-    const allData = await Stock.find()
-      .sort({ createdAt: -1 })
-      .maxTimeMS(5000); // ⬅️ prevent hanging
+    const allData = await Stock.find().sort({ createdAt: -1 });
+
+    const formatted = allData.map(item => ({
+      id: item._id,
+      ...item.toObject(),
+    }));
 
     res.json({
       success: true,
-      data: allData,
+      data: formatted,
     });
 
   } catch (err) {
-    console.log("FETCH ERROR:", err);
-
     res.status(500).json({
       success: false,
-      message: "Server timeout / DB issue",
+      message: err.message,
     });
   }
 });
