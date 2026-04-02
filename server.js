@@ -38,7 +38,10 @@ app.post('/add', async (req, res) => {
 
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(201).json({
+  success: true,
+  data: data
+});
   }
 });
 
@@ -79,7 +82,10 @@ app.put('/update/:id', async (req, res) => {
       refresh: true,
     });
 
-    res.json(updated);
+    res.json({
+  success: true,
+  data: updated
+});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -95,7 +101,10 @@ app.delete('/delete/:id', async (req, res) => {
       refresh: true,
     });
 
-    res.json({ message: "Deleted" });
+   res.json({
+  success: true,
+  message: "Deleted"
+});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
