@@ -22,25 +22,23 @@ mongoose.connect(process.env.MONGO_URI, {
 .catch(err => console.log("Mongo Error:", err));
 
 /// ✅ ADD
-app.post("/data", async (req, res) => {
+const client = require('./elastic/elasticClient');
+
+
+app.post('/add', async (req, res) => {
   try {
-    console.log("BODY RECEIVED:", req.body); // 🔥 DEBUG
+    const data = await Product.create(req.body);
 
-    const newData = new Stock(req.body);
-    await newData.save();
-
-    res.status(201).json({
-      success: true,
-      data: newData,
+    await client.index({
+      index: 'products',
+      id: data._id.toString(),
+      body: data.toObject(),
+      refresh: true,
     });
 
+    res.json(data);
   } catch (err) {
-    console.log("ADD ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -66,48 +64,76 @@ app.get("/data", async (req, res) => {
   }
 });
 /// ✅ UPDATE
-app.put("/data/update/:id", async (req, res) => {
+app.put('/update/:id', async (req, res) => {
   try {
-    console.log("UPDATE BODY:", req.body);
-
-    const updated = await Stock.findByIdAndUpdate(
+    const updated = await Product.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
-      { new: true } // ✅ FIX
+      req.body,
+      { new: true }
     );
 
-    if (!updated) {
-      return res.status(404).json({ message: "Data not found" });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: updated,
+    await client.update({
+      index: 'products',
+      id: req.params.id,
+      doc: req.body,
+      refresh: true,
     });
 
+    res.json(updated);
   } catch (err) {
-    console.log("UPDATE ERROR:", err);
-
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 /// ✅ DELETE
-app.delete("/data/delete/:id", async (req, res) => {
+app.delete('/delete/:id', async (req, res) => {
   try {
-    const deleted = await Stock.findByIdAndDelete(req.params.id);
+    await Product.findByIdAndDelete(req.params.id);
 
-    if (!deleted) {
-      return res.status(404).json({ message: "Data not found" });
-    }
+    await client.delete({
+      index: 'products',
+      id: req.params.id,
+      refresh: true,
+    });
 
-    res.status(200).json({ message: "Deleted successfully" });
-
+    res.json({ message: "Deleted" });
   } catch (err) {
-    console.error("DELETE ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get('/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    const result = await client.search({
+      index: 'products',
+      body: {
+        query: {
+          multi_match: {
+            query: query,
+            fields: [
+              'vehicleNumber',
+              'variety',
+              'species',
+              'partyName',
+              'lotNo',
+              'poNo',
+              'location',
+              'harvestArea'
+            ],
+            fuzziness: 'AUTO',
+          },
+        },
+      },
+    });
+
+    const data = result.hits.hits.map(item => ({
+      id: item._id,
+      ...item._source,
+    }));
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
