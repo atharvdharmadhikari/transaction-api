@@ -86,25 +86,38 @@ app.get("/data", async (req, res) => {
 /// ✅ UPDATE
 app.put('/update/:id', async (req, res) => {
   try {
-    const updated = await Product.findByIdAndUpdate(
+    const updated = await Stock.findByIdAndUpdate(  // ✅ FIXED
       req.params.id,
       req.body,
       { new: true }
     );
 
-    await client.update({
-      index: 'products',
-      id: req.params.id,
-      doc: req.body,
-      refresh: true,
-    });
+    try {
+      await client.update({
+        index: 'products',
+        id: req.params.id,
+        doc: req.body,
+        refresh: true,
+      });
+    } catch (e) {
+      console.log("Elastic Error:", e.message);
+    }
 
     res.json({
-  success: true,
-  data: updated
-});
+      success: true,
+      data: {
+        id: updated._id,
+        ...updated.toObject(),
+      },
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.log("UPDATE ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 /// ✅ DELETE
